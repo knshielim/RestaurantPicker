@@ -1,6 +1,6 @@
 # Where2Eat
 
-A small website that helps you decide where to eat. It is plain HTML, CSS and JavaScript, so there is no build step and no API key.
+A small website that helps you decide where to eat. It is plain HTML, CSS and JavaScript, so there is no build step. TomTom is optional; without its key, map searches use OpenStreetMap.
 
 ## Features
 
@@ -43,6 +43,17 @@ This is optional and needs a Google Cloud billing account (card). The off-campus
 
 Until it's set up, the site uses TomTom (if `config.js` has a key) or OpenStreetMap instead.
 
+### Search coverage and refresh
+
+- Bell Suites / Sunsuria City uses a 1.5 km search radius; Kota Warisan uses 2.5 km. These are search circles, not neighbourhood boundaries. Edit `XMUM_AREAS` in `xmum-data.js` to adjust them.
+- TomTom searches retrieve additional pages instead of stopping at 300 places. A partial response is shown with a warning rather than discarded. Larger searches can use more API requests.
+- TomTom results expire after 30 minutes. Search centres expire after seven days. The XMUM Refresh button bypasses both caches.
+- Live results replace each area's unverified starter list. An area with no live results keeps its starter list as a fallback. Absence from an API does not confirm that a restaurant has closed.
+- Nearby also uses TomTom when configured, with OpenStreetMap as a fallback. Its cache expires after 30 minutes.
+- Google snapshots older than 14 days are skipped so an inactive update workflow cannot override fresher providers indefinitely.
+
+Run the search regression checks with `node --test scripts/places.test.cjs`.
+
 1. **Turn on the Action.** Move `scripts/google-places-workflow.yml` to `.github/workflows/pages.yml`.
 2. **Get an API key.** In the [Google Cloud console](https://console.cloud.google.com/), create a project and enable **Places API (New)**. Google asks you to add a billing account (card), but this usage fits in the free tier. Then go to **APIs & Services → Credentials → Create credentials → API key**. Under **API restrictions**, restrict the key to **Places API (New)**.
 3. **Optional: cap usage so you can never be charged.** Go to **APIs & Services → Places API (New) → Quotas** and set the daily limits for "SearchNearby" and "SearchText" requests to something like 100.
@@ -53,7 +64,7 @@ Until it's set up, the site uses TomTom (if `config.js` has a key) or OpenStreet
 After that, it refreshes by itself every Monday.
 
 
-Data is stored in your browser (`localStorage`). Nothing is sent anywhere except the map lookups to OpenStreetMap.
+Saved places, history and settings are stored in your browser (`localStorage`). Map searches send the search location to TomTom when configured, or to OpenStreetMap services as a fallback.
 
 ## Opening hours format
 

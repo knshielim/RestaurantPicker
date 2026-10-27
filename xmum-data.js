@@ -16,16 +16,18 @@ const XMUM_AREAS = {
     label: 'Bell Suites & Sunsuria City',
     short: 'Sunsuria City',
     icon: '🏢',
-    // Tried in order until one is found, then OpenStreetMap is searched around it
-    geocode: ['Bell Avenue, Bandar Sunsuria, Sepang', 'Bell Suites, Sepang', 'Bandar Sunsuria, Sepang'],
-    radius: 900,
+    // Prefer the neighbourhood over fuzzy building or street matches.
+    geocode: ['Sunsuria City, Sepang, Selangor', 'Bell Suites, Sunsuria City, Sepang', 'Bandar Sunsuria, Sepang'],
+    centreMatch: 'sunsuria',
+    radius: 1500,
   },
   warisan: {
     label: 'Kota Warisan',
     short: 'Kota Warisan',
     icon: '🏘️',
-    geocode: ['Jalan Warisan Sentral 1, Kota Warisan', 'Kota Warisan, Sepang'],
-    radius: 1500,
+    geocode: ['Kota Warisan, Sepang, Selangor', 'Jalan Warisan Sentral 1, Kota Warisan'],
+    centreMatch: 'kota warisan',
+    radius: 2500,
   },
 };
 

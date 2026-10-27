@@ -3,7 +3,7 @@
 /* ---------- Storage ---------- */
 
 const KEY = 'w2e.v1';
-const NEARBY_CACHE_KEY = 'w2e.nearbyCache';
+const NEARBY_CACHE_KEY = 'w2e.nearbyCache.v2';
 
 const defaultState = () => ({
   favourites: [],
@@ -36,15 +36,14 @@ function loadState() {
 }
 
 let state = loadState();
-let nearby = [];            // places from OpenStreetMap
+let nearby = [];            // nearby places from TomTom or OpenStreetMap
 const skipped = new Set();  // "Not today" for this session
 let currentPick = null;
-let xmumLive = { sunsuria: [], warisan: [] }; // Google or OpenStreetMap places around the off-campus areas
+let xmumLive = { sunsuria: [], warisan: [] };
 let googleUpdated = null; // date of google-places.json, when the site has one
 let liveSource = null;     // 'google', 'tomtom' or 'osm': where xmumLive came from
-let liveNames = new Set(); // normalised names in xmumLive, to hide duplicate starter places
 let liveWarning = '';      // why TomTom wasn't used, shown under the list
-const XMUM_LIVE_KEY = 'w2e.xmumLive';
+const XMUM_LIVE_KEY = 'w2e.xmumLive.v2';
 
 function save() {
   try { localStorage.setItem(KEY, JSON.stringify(state)); }
@@ -281,7 +280,7 @@ async function searchArea(q) {
   }
 }
 
-/* ---------- Nearby (OpenStreetMap Overpass) ---------- */
+/* ---------- Nearby ---------- */
 
 // Public Overpass servers, tried in turn because any one of them can be busy
 const OVERPASS = [
@@ -339,7 +338,7 @@ async function loadNearby(force = false) {
       const c = JSON.parse(localStorage.getItem(NEARBY_CACHE_KEY) || 'null');
       if (c && c.radius === radius && distanceM(c, loc) < 100 && Date.now() - c.at < 30 * 60 * 1000) {
         nearby = c.places;
-        setNearbyStatus('');
+        setNearbyStatus(c.warning || '');
         renderNearby(); updatePoolInfo();
         return;
       }
@@ -348,16 +347,28 @@ async function loadNearby(force = false) {
 
   setNearbyStatus('Looking for food nearby…');
   $('#refreshNearby').disabled = true;
-  const q = `[out:json][timeout:25];nwr["amenity"~"^(restaurant|fast_food|cafe|food_court)$"]["name"](around:${radius},${loc.lat},${loc.lon});out center tags 300;`;
+  const q = `[out:json][timeout:25];nwr["amenity"~"^(restaurant|fast_food|cafe|food_court)$"]["name"](around:${radius},${loc.lat},${loc.lon});out center tags;`;
   try {
-    const data = await fetchOverpass(q);
+    let places = [];
+    let warning = '';
+    if (typeof TOMTOM_KEY === 'string' && TOMTOM_KEY.trim()) {
+      try {
+        const result = await searchTomTom(loc, radius);
+        places = result.places;
+        warning = result.warning;
+      } catch { warning = 'TomTom is unavailable. Showing OpenStreetMap places.'; }
+    }
+    if (!places.length) {
+      const data = await fetchOverpass(q);
+      places = data.elements.map(osmToPlace);
+    }
     const seen = new Set();
-    nearby = data.elements.map(osmToPlace)
+    nearby = places
       .filter(p => p.name && p.lat != null && !seen.has(p.id) && seen.add(p.id))
       .map(p => ({ ...p, dist: distanceM(loc, p) }))
       .sort((a, b) => a.dist - b.dist);
-    try { localStorage.setItem(NEARBY_CACHE_KEY, JSON.stringify({ lat: loc.lat, lon: loc.lon, radius, at: Date.now(), places: nearby })); } catch { /* cache is optional */ }
-    setNearbyStatus(nearby.length ? '' : 'No places found on the map here. Try a bigger radius, or add your own in My places.');
+    try { localStorage.setItem(NEARBY_CACHE_KEY, JSON.stringify({ lat: loc.lat, lon: loc.lon, radius, at: Date.now(), places: nearby, warning })); } catch { /* cache is optional */ }
+    setNearbyStatus(nearby.length ? warning : 'No places found on the map here. Try a bigger radius, or add your own in My places.');
   } catch {
     setNearbyStatus('The map servers are busy right now. Tap Refresh to try again in a minute. My places still work.');
   } finally {
@@ -370,9 +381,9 @@ async function loadNearby(force = false) {
 /* ---------- Favourites ---------- */
 
 const favByOsm = id => state.favourites.find(f => f.osmId === id);
-// Starter places are dropped when Google has the area covered, or when the live list already has them
+// Unverified starter entries are a fallback, not evidence that a business still exists.
 const allXmum = () => [
-  ...XMUM_PLACES.filter(p => !p.unverified || (liveSource !== 'google' && !nameIn(liveNames, p.name))),
+  ...XMUM_PLACES.filter(p => !p.unverified || !xmumLive[p.area]?.length),
   ...xmumLive.sunsuria, ...xmumLive.warisan,
 ];
 const findPlace = id => state.favourites.find(f => f.id === id) || nearby.find(p => p.id === id) || allXmum().find(p => p.id === id);
@@ -679,6 +690,8 @@ function buildPool() {
     if (src !== 'nearby') pool.push(...state.favourites.filter(p => !f.list || p.list === f.list));
     if (src !== 'favourites' && !f.list) pool.push(...nearby.filter(p => !savedRefs.has(p.id)));
   }
+  // Overlapping area circles can return the same provider ID in both lists.
+  pool = [...new Map(pool.map(p => [p.id, p])).values()];
   const total = pool.length;
   const recentCutoff = Date.now() - f.avoid * 864e5;
   const recent = new Set(state.history.filter(h => h.at >= recentCutoff).flatMap(h => [h.placeId, h.name]));
@@ -935,7 +948,6 @@ function importFile(file) {
 /* ---------- XMUM mode ---------- */
 
 let xmumView = 'campus';
-const normName = s => s.toLowerCase().replace(/\(.*?\)/g, '').replace(/[^a-z0-9]/g, '');
 
 function setXmumMode(on) {
   state.settings.xmum = on;
@@ -966,18 +978,22 @@ function applyMode() {
 // GitHub Action) when the site has it, then TomTom when config.js has a key,
 // otherwise OpenStreetMap.
 async function loadXmumLive(force) {
+  liveWarning = '';
   if (await loadGooglePlaces()) return;
   if (await loadTomTom(force)) return;
   if (!force) {
     try {
       const c = JSON.parse(localStorage.getItem(XMUM_LIVE_KEY) || 'null');
-      if (c && Date.now() - c.at < 24 * 3600 * 1000) { setLive(c.areas, 'osm'); renderAll(); return; }
+      if (c && Date.now() - c.at < 24 * 3600 * 1000) {
+        setLive(c.areas, 'osm');
+        $('#xmumStatus').textContent = liveWarning;
+        renderAll();
+        return;
+      }
     } catch { /* ignore broken cache */ }
   }
   $('#xmumStatus').textContent = 'Loading more places from the map…';
   $('#xmumRefresh').disabled = true;
-  const known = new Set(XMUM_PLACES.map(p => normName(p.name)));
-  const seen = new Set();
   const result = { sunsuria: [], warisan: [] };
   let failed = false;
   for (const area of ['sunsuria', 'warisan']) {
@@ -985,18 +1001,22 @@ async function loadXmumLive(force) {
     try {
       let centre = null;
       for (const q of cfg.geocode) {
-        const r = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=my&q=${encodeURIComponent(q)}`);
+        const r = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=5&countrycodes=my&q=${encodeURIComponent(q)}`);
+        if (!r.ok) throw new Error(`Geocoding ${r.status}`);
         const j = await r.json();
-        if (j.length) { centre = { lat: +j[0].lat, lon: +j[0].lon }; break; }
+        const match = j.find(r => (r.display_name || '').toLowerCase().includes(cfg.centreMatch));
+        if (match && Number.isFinite(+match.lat) && Number.isFinite(+match.lon)) {
+          centre = { lat: +match.lat, lon: +match.lon };
+          break;
+        }
       }
-      if (!centre) continue;
-      const data = await fetchOverpass(`[out:json][timeout:25];nwr["amenity"~"^(restaurant|fast_food|cafe|food_court)$"]["name"](around:${cfg.radius},${centre.lat},${centre.lon});out center tags 200;`);
+      if (!centre) { failed = true; continue; }
+      const data = await fetchOverpass(`[out:json][timeout:25];nwr["amenity"~"^(restaurant|fast_food|cafe|food_court)$"]["name"](around:${cfg.radius},${centre.lat},${centre.lon});out center tags;`);
+      const seen = new Set();
       for (const el of data.elements) {
         const p = osmToPlace(el);
-        const n = p.name ? normName(p.name) : '';
-        if (!n || p.lat == null || seen.has(p.id)) continue;
-        // Skip places already in the built-in list (including the campus canteens)
-        if ([...known].some(k => k.length > 3 && n.length > 3 && (k.includes(n) || n.includes(k)))) continue;
+        if (!p.name?.trim() || p.lat == null || seen.has(p.id)) continue;
+        if (isCampusPlace(p)) continue;
         seen.add(p.id);
         result[area].push({ ...p, area, kind: 'meal' });
       }
@@ -1008,46 +1028,45 @@ async function loadXmumLive(force) {
     return;
   }
   setLive(result, 'osm');
+  if (failed) liveWarning = 'Some areas could not be loaded. Their unverified starter lists are shown instead. Tap Refresh to retry.';
   $('#xmumStatus').textContent = liveWarning;
-  try { localStorage.setItem(XMUM_LIVE_KEY, JSON.stringify({ at: Date.now(), areas: result })); } catch { /* cache is optional */ }
+  if (!failed) try { localStorage.setItem(XMUM_LIVE_KEY, JSON.stringify({ at: Date.now(), areas: result })); } catch { /* cache is optional */ }
   renderAll();
 }
 
 function setLive(live, source) {
   xmumLive = live;
   liveSource = source;
-  liveNames = new Set([...live.sunsuria, ...live.warisan].map(p => normName(p.name)));
 }
 
-// Loose name match, so "AllAce Bell Avenue" and "AllAce" count as the same place
-function nameIn(set, name) {
-  const n = normName(name);
-  if (n.length < 4) return set.has(n);
-  for (const k of set) if (k.length >= 4 && (k.includes(n) || n.includes(k))) return true;
-  return false;
+function isCampusPlace(p) {
+  return /\b(?:xiamen university|xmum)\b/i.test(p.address || '');
 }
 
-/* TomTom Search API (free key, no card). Results are kept for this browser
-   session only, so each visit makes a few requests: 2 the very first time to
-   find the areas, then 1–3 per area. */
+/* TomTom results expire after 30 minutes; Refresh bypasses both result and centre caches. */
 
-const TOMTOM_SESSION_KEY = 'w2e.tomtom';
+const TOMTOM_SESSION_KEY = 'w2e.tomtom.v2';
 
 async function tomtom(path, params) {
   const qs = new URLSearchParams({ key: TOMTOM_KEY, countrySet: 'MY', language: 'en-GB', ...params });
-  const r = await fetch(`https://api.tomtom.com/search/2/${path}.json?${qs}`);
+  const r = await fetch(`https://api.tomtom.com/search/2/${path}.json?${qs}`, { signal: AbortSignal.timeout(20000), cache: 'no-cache' });
   if (!r.ok) { const e = new Error(`TomTom ${r.status}`); e.status = r.status; throw e; }
   return r.json();
 }
 
-async function tomtomCentre(area) {
-  const key = 'w2e.centre.' + area;
-  try { const c = JSON.parse(localStorage.getItem(key) || 'null'); if (c) return c; } catch { /* look it up again */ }
+async function tomtomCentre(area, force = false) {
+  const key = 'w2e.centre.v2.' + area;
+  if (!force) try {
+    const c = JSON.parse(localStorage.getItem(key) || 'null');
+    if (c && Number.isFinite(c.lat) && Number.isFinite(c.lon) && Date.now() - c.at < 7 * 864e5) return c;
+  } catch { /* look it up again */ }
   for (const q of XMUM_AREAS[area].geocode) {
-    const j = await tomtom(`geocode/${encodeURIComponent(q)}`, { limit: 1 });
-    const pos = j.results?.[0]?.position;
-    if (pos) {
-      const c = { lat: pos.lat, lon: pos.lon };
+    const j = await tomtom(`geocode/${encodeURIComponent(q)}`, { limit: 5 });
+    const match = (j.results || []).find(r =>
+      (r.address?.freeformAddress || '').toLowerCase().includes(XMUM_AREAS[area].centreMatch));
+    const pos = match?.position;
+    if (pos && Number.isFinite(pos.lat) && Number.isFinite(pos.lon)) {
+      const c = { lat: pos.lat, lon: pos.lon, at: Date.now() };
       try { localStorage.setItem(key, JSON.stringify(c)); } catch { /* optional */ }
       return c;
     }
@@ -1095,60 +1114,81 @@ function tomtomToPlace(r, area) {
   };
 }
 
+async function searchTomTom(centre, radius, area) {
+  const seen = new Set();
+  const places = [];
+  let warning = '';
+  // 7315 = restaurants, 9376 = cafés/pubs.
+  for (const categorySet of ['7315,9376', '7315']) {
+    try {
+      for (let ofs = 0; ; ofs += 100) {
+        const j = await tomtom('nearbySearch/', {
+          lat: centre.lat, lon: centre.lon, radius,
+          limit: 100, ofs, categorySet, openingHours: 'nextSevenDays',
+        });
+        let added = 0;
+        for (const r of j.results || []) {
+          const p = tomtomToPlace(r, area);
+          if (!p.name || p.lat == null || p.lon == null || seen.has(p.id) || (area && isCampusPlace(p))) continue;
+          seen.add(p.id);
+          places.push(p);
+          added++;
+        }
+        const count = (j.results || []).length;
+        const total = j.summary?.totalResults;
+        if (count < 100 || (Number.isFinite(total) && ofs + count >= total)) break;
+        if (ofs >= 1900 || (!added && ofs > 0)) {
+          warning = 'The search returned too many or repeated results. Try a smaller radius for more detail.';
+          break;
+        }
+      }
+      return { places, warning };
+    } catch (e) {
+      if (e.status === 400 && categorySet !== '7315') continue;
+      if (!places.length) throw e;
+      return { places, warning: 'Only part of the restaurant list could be loaded. Tap Refresh to retry.' };
+    }
+  }
+  return { places, warning };
+}
+
 async function loadTomTom(force) {
   if (typeof TOMTOM_KEY !== 'string' || !TOMTOM_KEY.trim()) return false;
   if (!force) {
     try {
       const c = JSON.parse(sessionStorage.getItem(TOMTOM_SESSION_KEY) || 'null');
-      if (c) { setLive(c, 'tomtom'); renderAll(); return true; }
+      if (c && Date.now() - c.at < 30 * 60 * 1000) {
+        setLive(c.areas, 'tomtom');
+        $('#xmumStatus').textContent = '';
+        renderAll();
+        return true;
+      }
     } catch { /* fetch again */ }
   }
   $('#xmumStatus').textContent = 'Loading places from TomTom…';
   $('#xmumRefresh').disabled = true;
-  const known = new Set(XMUM_PLACES.filter(p => p.area === 'campus').map(p => normName(p.name)));
-  const seen = new Set();
   const live = { sunsuria: [], warisan: [] };
-  try {
-    for (const area of Object.keys(live)) {
-      const centre = await tomtomCentre(area);
-      if (!centre) continue;
-      // 7315 = restaurants, 9376 = cafés/pubs; fall back to restaurants only if TomTom rejects that
-      for (const categorySet of ['7315,9376', '7315']) {
-        try {
-          for (let ofs = 0; ofs < 300; ofs += 100) {
-            const j = await tomtom('nearbySearch/', {
-              lat: centre.lat, lon: centre.lon, radius: XMUM_AREAS[area].radius,
-              limit: 100, ofs, categorySet, openingHours: 'nextSevenDays',
-            });
-            for (const r of j.results || []) {
-              const p = tomtomToPlace(r, area);
-              if (!p.name || p.lat == null || seen.has(p.id) || nameIn(known, p.name)) continue;
-              seen.add(p.id);
-              live[area].push(p);
-            }
-            if ((j.results || []).length < 100 || ofs + 100 >= (j.summary?.totalResults ?? 0)) break;
-          }
-          break;
-        } catch (e) {
-          if (e.status !== 400 || categorySet === '7315') throw e;
-        }
-      }
+  const warnings = [];
+  for (const area of Object.keys(live)) {
+    try {
+      const centre = await tomtomCentre(area, force);
+      if (!centre) throw new Error('No search centre found');
+      const result = await searchTomTom(centre, XMUM_AREAS[area].radius, area);
+      live[area] = result.places;
+      if (result.warning) warnings.push(`${XMUM_AREAS[area].short}: ${result.warning}`);
+      if (!result.places.length) warnings.push(`${XMUM_AREAS[area].short}: no live places found.`);
+    } catch (e) {
+      const reason = e.status === 403 || e.status === 401 ? 'API key refused'
+        : e.status === 429 ? 'daily request limit reached' : 'search unavailable';
+      warnings.push(`${XMUM_AREAS[area].short}: ${reason}.`);
     }
-  } catch (e) {
-    $('#xmumRefresh').disabled = false;
-    liveWarning = e.status === 403 || e.status === 401
-      ? 'TomTom refused the API key. Check the key in config.js and the allowed domains on developer.tomtom.com.'
-      : e.status === 429 ? 'TomTom\'s free daily limit is used up. Showing other places until tomorrow.'
-        : 'Could not reach TomTom. Showing other places instead.';
-    $('#xmumStatus').textContent = liveWarning;
-    return false;
   }
   $('#xmumRefresh').disabled = false;
+  liveWarning = warnings.join(' ');
+  $('#xmumStatus').textContent = liveWarning;
   if (!live.sunsuria.length && !live.warisan.length) return false;
   setLive(live, 'tomtom');
-  liveWarning = '';
-  try { sessionStorage.setItem(TOMTOM_SESSION_KEY, JSON.stringify(live)); } catch { /* optional */ }
-  $('#xmumStatus').textContent = '';
+  if (!warnings.length) try { sessionStorage.setItem(TOMTOM_SESSION_KEY, JSON.stringify({ at: Date.now(), areas: live })); } catch { /* optional */ }
   renderAll();
   return true;
 }
@@ -1158,11 +1198,12 @@ async function loadGooglePlaces() {
     const r = await fetch('google-places.json', { cache: 'no-cache' });
     if (!r.ok) return false;
     const data = await r.json();
-    const known = new Set(XMUM_PLACES.filter(p => p.area === 'campus').map(p => normName(p.name)));
+    const updatedAt = Date.parse(data.generatedAt);
+    if (!Number.isFinite(updatedAt) || Date.now() - updatedAt > 14 * 864e5) return false;
     const live = { sunsuria: [], warisan: [] };
     for (const area of Object.keys(live)) {
       live[area] = (data.areas?.[area]?.places || [])
-        .filter(p => p.name && !known.has(normName(p.name)))
+        .filter(p => p.name && !isCampusPlace(p))
         .map(p => ({ ...p, area, source: 'google' }));
     }
     if (!live.sunsuria.length && !live.warisan.length) return false;
@@ -1193,7 +1234,7 @@ function renderXmum() {
     : liveSource === 'google'
       ? `Places, ratings and hours from Google Maps, updated ${googleUpdated.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}. Missing a place? Add it in My places.`
       : liveSource === 'tomtom'
-        ? 'Places and opening hours from TomTom (© TomTom), plus a few from web listings. Missing a place? Add it in My places.'
+        ? 'Places and opening hours from TomTom (© TomTom). Unverified starter lists are used only when an area has no live results. Missing a place? Add it in My places.'
         : 'Places come from web listings and OpenStreetMap, so hours aren\'t checked. Missing a place? Add it in My places.';
 
   let html;
@@ -1398,7 +1439,7 @@ function init() {
   else loadNearby(false);
 
   if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
-    navigator.serviceWorker.register('sw.js?v=5').catch(() => { /* offline support is optional */ });
+    navigator.serviceWorker.register('sw.js?v=6').catch(() => { /* offline support is optional */ });
     // When an update takes over from an older version, reload once so the new code runs
     const hadController = !!navigator.serviceWorker.controller;
     let reloaded = false;
