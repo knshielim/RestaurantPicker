@@ -4,4 +4,4 @@
 // lists in XMUM mode. Paste it between the quotes. Leave it empty to use OpenStreetMap.
 // The key is visible to anyone who opens the site, so restrict it to your site's
 // domain on developer.tomtom.com (see README, "Getting places from TomTom").
-const TOMTOM_KEY = '';
+const TOMTOM_KEY = 'I9hnCCm8D3tUBf2L0gTSeq7V7KpwKAp0';
