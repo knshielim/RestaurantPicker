@@ -29,7 +29,7 @@ function app(fetcher) {
     renderNearby = () => {};
     updatePoolInfo = () => {};
     globalThis.api = {
-      searchTomTom, loadTomTom, tomtomCentre, loadGooglePlaces, loadXmumLive, loadNearby, allXmum, setLive, buildPool,
+      searchTomTom, loadTomTom, tomtomCentre, loadGooglePlaces, loadXmumLive, loadNearby, allXmum, setLive, buildPool, mergeAreaPlaces,
       nearby: () => nearby,
       live: () => xmumLive,
       location: value => { state.settings.location = value; },
@@ -155,4 +155,57 @@ test('Google rejects stale snapshots and keeps off-campus branches in fresh ones
   assert.equal(await a.loadGooglePlaces(), true);
   assert.equal(a.live().warisan[0].id, 'g:zus');
   assert(a.allXmum().some(p => p.area === 'sunsuria' && p.unverified));
+});
+
+test('combined sources fill missing details without collapsing separate branches', () => {
+  const a = app();
+  const base = { name: 'ZUS Coffee', lat: 2.8289, lon: 101.7069 };
+  const result = a.mergeAreaPlaces([
+    { ...base, id: 'tt:bell', source: 'tomtom', hours: '' },
+    { ...base, id: 'osm:bell', source: 'osm', hours: '08:00-22:00', halal: true },
+    { ...base, id: 'tt:warisan', source: 'tomtom', lat: 2.8215, lon: 101.7010 },
+  ]);
+  assert.equal(result.sunsuria.length, 1);
+  assert.equal(result.sunsuria[0].hours, '08:00-22:00');
+  assert.equal(result.sunsuria[0].halal, true);
+  assert.equal(result.warisan.length, 1);
+});
+
+test('different Unicode names and neighbouring businesses are not merged', () => {
+  const a = app();
+  const places = ['小食堂', '大食堂'].map((name, i) => ({ name, id: String(i), source: i ? 'osm' : 'tomtom', lat: 2.8289, lon: 101.7069 }));
+  assert.equal(a.mergeAreaPlaces(places).sunsuria.length, 2);
+});
+
+test('combined loader uses both sources, caches complete results, and Refresh bypasses cache', async () => {
+  let calls = 0;
+  const a = app(async url => {
+    calls++;
+    if (url === 'google-places.json') return ok({ areas: {} });
+    if (url.includes('tomtom.com')) return ok({ results: [poi('chain', 'Chain restaurant')] });
+    return ok({ elements: [{ type: 'node', id: 8, lat: 2.8289, lon: 101.7069, tags: { name: 'OSM local stall', amenity: 'restaurant' } }] });
+  });
+  await a.loadXmumLive(true);
+  assert(a.allXmum().some(p => p.id === 'tt:chain'));
+  assert(a.allXmum().some(p => p.id === 'osm:node/8'));
+  assert(a.context.sessionStorage.getItem('w2e.live.v3'));
+  const firstCalls = calls;
+  await a.loadXmumLive(false);
+  assert.equal(calls, firstCalls + 1);
+  await a.loadXmumLive(true);
+  assert(calls > firstCalls + 2);
+  assert.equal(a.nodes.get('#xmumRefresh').disabled, false);
+});
+
+test('one failed provider retains the other provider and does not cache partial coverage', async () => {
+  const a = app(async url => {
+    if (url === 'google-places.json') return ok({ areas: {} });
+    if (url.includes('tomtom.com')) return { ok: false, status: 403 };
+    return ok({ elements: [{ type: 'node', id: 9, lat: 2.8289, lon: 101.7069, tags: { name: 'Local stall', amenity: 'restaurant' } }] });
+  });
+  await a.loadXmumLive(true);
+  assert(a.allXmum().some(p => p.id === 'osm:node/9'));
+  assert.match(a.nodes.get('#xmumStatus').textContent, /API key refused/);
+  assert.equal(a.context.sessionStorage.getItem('w2e.live.v3'), null);
+  assert.equal(a.nodes.get('#xmumRefresh').disabled, false);
 });

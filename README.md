@@ -47,7 +47,7 @@ Until it's set up, the site uses TomTom (if `config.js` has a key) or OpenStreet
 
 - Bell Suites / Sunsuria City uses a 1.5 km search radius; Kota Warisan uses 2.5 km. These are search circles, not neighbourhood boundaries. Edit `XMUM_AREAS` in `xmum-data.js` to adjust them.
 - TomTom searches retrieve additional pages instead of stopping at 300 places. A partial response is shown with a warning rather than discarded. Larger searches can use more API requests.
-- TomTom results expire after 30 minutes. Search centres expire after seven days. The XMUM Refresh button bypasses both caches.
+- XMUM searches combine TomTom and OpenStreetMap results around fixed area centres. Results expire after 30 minutes, and Refresh bypasses the cache. Old geocoding caches cannot change these centres.
 - Live results replace each area's unverified starter list. An area with no live results keeps its starter list as a fallback. Absence from an API does not confirm that a restaurant has closed.
 - Nearby also uses TomTom when configured, with OpenStreetMap as a fallback. Its cache expires after 30 minutes.
 - Google snapshots older than 14 days are skipped so an inactive update workflow cannot override fresher providers indefinitely.

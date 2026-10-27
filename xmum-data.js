@@ -3,8 +3,8 @@
 /* Food around Xiamen University Malaysia.
    Campus hours come from "Cafeteria Operation Hours 2026 (updated 28.09.2026)".
    Off-campus places come from public web listings and have no verified hours,
-   so they are marked `unverified`. The app also adds places from OpenStreetMap
-   around each off-campus area when it loads. */
+   so they are marked `unverified`. The app combines TomTom and OpenStreetMap
+   places around fixed centres and assigns each to the nearest eligible area. */
 
 const XMUM_AREAS = {
   campus: {
@@ -19,6 +19,7 @@ const XMUM_AREAS = {
     // Prefer the neighbourhood over fuzzy building or street matches.
     geocode: ['Sunsuria City, Sepang, Selangor', 'Bell Suites, Sunsuria City, Sepang', 'Bandar Sunsuria, Sepang'],
     centreMatch: 'sunsuria',
+    centre: { lat: 2.8289, lon: 101.7069 },
     radius: 1500,
   },
   warisan: {
@@ -27,6 +28,7 @@ const XMUM_AREAS = {
     icon: '🏘️',
     geocode: ['Kota Warisan, Sepang, Selangor', 'Jalan Warisan Sentral 1, Kota Warisan'],
     centreMatch: 'kota warisan',
+    centre: { lat: 2.8215, lon: 101.7010 },
     radius: 2500,
   },
 };

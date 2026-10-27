@@ -44,6 +44,8 @@ let googleUpdated = null; // date of google-places.json, when the site has one
 let liveSource = null;     // 'google', 'tomtom' or 'osm': where xmumLive came from
 let liveWarning = '';      // why TomTom wasn't used, shown under the list
 const XMUM_LIVE_KEY = 'w2e.xmumLive.v2';
+const LIVE_SESSION_KEY = 'w2e.live.v3';
+const OFFCAMPUS = ['sunsuria', 'warisan'];
 
 function save() {
   try { localStorage.setItem(KEY, JSON.stringify(state)); }
@@ -980,58 +982,92 @@ function applyMode() {
 async function loadXmumLive(force) {
   liveWarning = '';
   if (await loadGooglePlaces()) return;
-  if (await loadTomTom(force)) return;
   if (!force) {
     try {
-      const c = JSON.parse(localStorage.getItem(XMUM_LIVE_KEY) || 'null');
-      if (c && Date.now() - c.at < 24 * 3600 * 1000) {
-        setLive(c.areas, 'osm');
+      const c = JSON.parse(sessionStorage.getItem(LIVE_SESSION_KEY) || 'null');
+      if (c && Date.now() - c.at < 30 * 60 * 1000) {
+        setLive(c.areas, c.source);
         $('#xmumStatus').textContent = liveWarning;
         renderAll();
         return;
       }
     } catch { /* ignore broken cache */ }
   }
-  $('#xmumStatus').textContent = 'Loading more places from the map…';
+  $('#xmumStatus').textContent = 'Loading places from TomTom and OpenStreetMap…';
   $('#xmumRefresh').disabled = true;
-  const result = { sunsuria: [], warisan: [] };
-  let failed = false;
-  for (const area of ['sunsuria', 'warisan']) {
-    const cfg = XMUM_AREAS[area];
+  try {
+    const [tomtomResult, osmResult] = await Promise.all([fetchTomTomPlaces(), fetchOsmAreaPlaces()]);
+    const live = mergeAreaPlaces([...tomtomResult.places, ...osmResult.places]);
+    liveWarning = [...tomtomResult.warnings, ...osmResult.warnings].join(' ');
+    if (!live.sunsuria.length && !live.warisan.length) {
+      $('#xmumStatus').textContent = liveWarning || 'No live places found. Showing the unverified starter lists.';
+      return;
+    }
+    const source = tomtomResult.places.length ? (osmResult.places.length ? 'mixed' : 'tomtom') : 'osm';
+    setLive(live, source);
+    $('#xmumStatus').textContent = liveWarning;
+    if (!liveWarning) try {
+      sessionStorage.setItem(LIVE_SESSION_KEY, JSON.stringify({ at: Date.now(), areas: live, source }));
+    } catch { /* cache is optional */ }
+    renderAll();
+  } finally {
+    $('#xmumRefresh').disabled = false;
+  }
+}
+
+function mergeAreaPlaces(list) {
+  const normalise = name => name.normalize('NFKC').toLocaleLowerCase().replace(/[^\p{L}\p{N}]/gu, '');
+  const kept = [];
+  for (const p of list) {
+    if (!p.name?.trim() || !Number.isFinite(p.lat) || !Number.isFinite(p.lon) || isCampusPlace(p)) continue;
+    const name = normalise(p.name);
+    const dup = kept.find(k => k.id === p.id ||
+      (k.source !== p.source && normalise(k.name) === name && distanceM(k, p) <= 75));
+    if (dup) {
+      for (const field of ['hours', 'website', 'phone', 'address']) if (!dup[field] && p[field]) dup[field] = p[field];
+      if (p.veg) dup.veg = true;
+      if (p.halal) dup.halal = true;
+    } else kept.push({ ...p, kind: p.kind || 'meal' });
+  }
+  const live = { sunsuria: [], warisan: [] };
+  for (const p of kept) {
+    const eligible = OFFCAMPUS.filter(area => distanceM(XMUM_AREAS[area].centre, p) <= XMUM_AREAS[area].radius);
+    if (!eligible.length) continue;
+    const area = eligible.reduce((best, a) =>
+      distanceM(XMUM_AREAS[a].centre, p) < distanceM(XMUM_AREAS[best].centre, p) ? a : best);
+    live[area].push({ ...p, area });
+  }
+  return live;
+}
+
+async function fetchOsmAreaPlaces() {
+  const around = OFFCAMPUS.map(area => {
+    const { centre, radius } = XMUM_AREAS[area];
+    return `nwr["amenity"~"^(restaurant|fast_food|cafe|food_court)$"]["name"](around:${radius},${centre.lat},${centre.lon});`;
+  }).join('');
+  try {
+    const data = await fetchOverpass(`[out:json][timeout:25];(${around});out center tags;`);
+    return { places: data.elements.map(osmToPlace), warnings: [] };
+  } catch {
+    return { places: [], warnings: ['OpenStreetMap is unavailable. Showing the other available results. Tap Refresh to retry.'] };
+  }
+}
+
+async function fetchTomTomPlaces() {
+  const places = [], warnings = [];
+  if (typeof TOMTOM_KEY !== 'string' || !TOMTOM_KEY.trim()) return { places, warnings };
+  for (const area of OFFCAMPUS) {
     try {
-      let centre = null;
-      for (const q of cfg.geocode) {
-        const r = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=5&countrycodes=my&q=${encodeURIComponent(q)}`);
-        if (!r.ok) throw new Error(`Geocoding ${r.status}`);
-        const j = await r.json();
-        const match = j.find(r => (r.display_name || '').toLowerCase().includes(cfg.centreMatch));
-        if (match && Number.isFinite(+match.lat) && Number.isFinite(+match.lon)) {
-          centre = { lat: +match.lat, lon: +match.lon };
-          break;
-        }
-      }
-      if (!centre) { failed = true; continue; }
-      const data = await fetchOverpass(`[out:json][timeout:25];nwr["amenity"~"^(restaurant|fast_food|cafe|food_court)$"]["name"](around:${cfg.radius},${centre.lat},${centre.lon});out center tags;`);
-      const seen = new Set();
-      for (const el of data.elements) {
-        const p = osmToPlace(el);
-        if (!p.name?.trim() || p.lat == null || seen.has(p.id)) continue;
-        if (isCampusPlace(p)) continue;
-        seen.add(p.id);
-        result[area].push({ ...p, area, kind: 'meal' });
-      }
-    } catch { failed = true; }
+      const result = await searchTomTom(XMUM_AREAS[area].centre, XMUM_AREAS[area].radius, area);
+      places.push(...result.places);
+      if (result.warning) warnings.push(`${XMUM_AREAS[area].short}: ${result.warning}`);
+    } catch (e) {
+      const reason = e.status === 403 || e.status === 401 ? 'API key refused'
+        : e.status === 429 ? 'daily request limit reached' : 'search unavailable';
+      warnings.push(`TomTom ${XMUM_AREAS[area].short}: ${reason}. Showing the other available results.`);
+    }
   }
-  $('#xmumRefresh').disabled = false;
-  if (failed && !result.sunsuria.length && !result.warisan.length) {
-    $('#xmumStatus').textContent = liveWarning || 'Could not load extra places from the map. Showing the built-in list.';
-    return;
-  }
-  setLive(result, 'osm');
-  if (failed) liveWarning = 'Some areas could not be loaded. Their unverified starter lists are shown instead. Tap Refresh to retry.';
-  $('#xmumStatus').textContent = liveWarning;
-  if (!failed) try { localStorage.setItem(XMUM_LIVE_KEY, JSON.stringify({ at: Date.now(), areas: result })); } catch { /* cache is optional */ }
-  renderAll();
+  return { places, warnings };
 }
 
 function setLive(live, source) {
@@ -1223,6 +1259,7 @@ function renderXmum() {
   $('#xmumRefresh').hidden = liveSource === 'google';
   const q = $('#xmumFilter').value.trim().toLowerCase();
   const openOnly = $('#xmumOpenOnly').checked;
+  const areaCount = allXmum().filter(p => p.area === xmumView).length;
   const places = allXmum().filter(p => p.area === xmumView &&
     (!q || [p.name, p.cuisine, p.address, p.notes].join(' ').toLowerCase().includes(q)) &&
     (!openOnly || isOpenNow(p.hours) !== false));
@@ -1233,6 +1270,8 @@ function renderXmum() {
     ? 'Hours are from the cafeteria list updated 28 Sep 2026. Hours and off days may change.'
     : liveSource === 'google'
       ? `Places, ratings and hours from Google Maps, updated ${googleUpdated.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}. Missing a place? Add it in My places.`
+      : liveSource === 'mixed'
+        ? `${areaCount} places from TomTom (© TomTom) and OpenStreetMap. Hours are shown where known. Unverified starter lists are used only when an area has no live results.`
       : liveSource === 'tomtom'
         ? 'Places and opening hours from TomTom (© TomTom). Unverified starter lists are used only when an area has no live results. Missing a place? Add it in My places.'
         : 'Places come from web listings and OpenStreetMap, so hours aren\'t checked. Missing a place? Add it in My places.';
@@ -1393,6 +1432,7 @@ function bindEvents() {
       localStorage.removeItem(KEY);
       localStorage.removeItem(NEARBY_CACHE_KEY);
       localStorage.removeItem(XMUM_LIVE_KEY);
+      try { sessionStorage.removeItem(LIVE_SESSION_KEY); sessionStorage.removeItem(TOMTOM_SESSION_KEY); } catch { /* optional */ }
       state = defaultState(); nearby = []; currentPick = null; skipped.clear();
       applyTheme(); applyFiltersToUI(); renderLocation(); applyMode();
       $('#result').hidden = true;
@@ -1439,7 +1479,7 @@ function init() {
   else loadNearby(false);
 
   if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
-    navigator.serviceWorker.register('sw.js?v=6').catch(() => { /* offline support is optional */ });
+    navigator.serviceWorker.register('sw.js?v=7').catch(() => { /* offline support is optional */ });
     // When an update takes over from an older version, reload once so the new code runs
     const hadController = !!navigator.serviceWorker.controller;
     let reloaded = false;
