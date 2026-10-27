@@ -9,7 +9,7 @@ const defaultState = () => ({
   favourites: [],
   history: [],
   settings: {
-    theme: 'auto',
+    theme: 'dark',
     radius: 1000,
     source: 'both',
     location: null, // { lat, lon, label }
@@ -57,6 +57,7 @@ function save() {
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
 const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+const icon = name => `<svg class="icon" aria-hidden="true"><use href="#icon-${name}"/></svg>`;
 
 function esc(s) {
   return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -523,7 +524,7 @@ function placeCard(p, { saved, showArea = true }) {
     p.googleRating ? `<span title="Google rating">⭐ ${p.googleRating.toFixed(1)} (${p.ratingCount.toLocaleString()}) Google</span>` : '',
     p.closedTemporarily ? '<span class="closed">Temporarily closed</span>' : '',
     open === true ? '<span class="open">Open now</span>' : open === false ? '<span class="closed">Closed now</span>' : '',
-    showArea && p.area && XMUM_AREAS[p.area] ? `<span class="tag">${XMUM_AREAS[p.area].icon} ${esc(XMUM_AREAS[p.area].short)}</span>` : '',
+    showArea && p.area && XMUM_AREAS[p.area] ? `<span class="tag">${esc(XMUM_AREAS[p.area].short)}</span>` : '',
     dist != null ? `<span>${fmtDistance(dist)}</span>` : '',
     p.veg ? '<span class="tag">Veg</span>' : '',
     p.halal ? '<span class="tag">Halal</span>' : '',
@@ -532,22 +533,22 @@ function placeCard(p, { saved, showArea = true }) {
   const dir = directionsUrl(p);
   const isFav = saved || !!favByOsm(p.id);
   const starAction = saved ? '' :
-    `<button class="star-btn" data-action="fav-toggle" data-id="${esc(p.id)}" aria-label="${isFav ? 'Remove from' : 'Save to'} My places" title="${isFav ? 'Saved' : 'Save to My places'}">${isFav ? '★' : '☆'}</button>`;
+    `<button class="star-btn${isFav ? ' is-saved' : ''}" data-action="fav-toggle" data-id="${esc(p.id)}" aria-label="${isFav ? 'Remove from' : 'Save to'} My places" aria-pressed="${isFav}" title="${isFav ? 'Saved' : 'Save to My places'}">${icon('heart')}</button>`;
   return `<li class="place">
     <div>
       <div class="title">${esc(p.name)}</div>
       <div class="meta">${meta}</div>
     </div>
     ${starAction || '<span></span>'}
-    ${p.address ? `<div class="notes muted">📍 ${esc(p.address)}</div>` : ''}
-    ${p.hours ? `<div class="notes muted">🕘 ${esc(prettyHours(p.hours))}</div>` : ''}
-    ${p.notes ? `<div class="notes">📝 ${esc(p.notes)}</div>` : ''}
-    ${p.unverified && !p.hours ? '<div class="notes muted small">ℹ️ From web listings. Check the hours before you go.</div>' : ''}
+    ${p.address ? `<div class="notes muted">${icon('pin')} ${esc(p.address)}</div>` : ''}
+    ${p.hours ? `<div class="notes muted">${icon('clock')} ${esc(prettyHours(p.hours))}</div>` : ''}
+    ${p.notes ? `<div class="notes">${esc(p.notes)}</div>` : ''}
+    ${p.unverified && !p.hours ? '<div class="notes muted small">From web listings. Check the hours before you go.</div>' : ''}
     <div class="actions">
-      <button class="btn small" data-action="pick-this" data-id="${esc(p.id)}">✅ Eat here</button>
-      ${dir ? `<a class="btn small ghost" href="${dir}" target="_blank" rel="noopener">🧭 Directions</a>` : ''}
-      ${p.website ? `<a class="btn small ghost" href="${esc(p.website)}" target="_blank" rel="noopener">🌐 Website</a>` : ''}
-      ${saved ? `<button class="btn small ghost" data-action="edit-fav" data-id="${esc(p.id)}">✏️ Edit</button>` : ''}
+      <button class="btn small" data-action="pick-this" data-id="${esc(p.id)}">${icon('check')} Eat here</button>
+      ${dir ? `<a class="btn small ghost" href="${dir}" target="_blank" rel="noopener">${icon('directions')} Directions</a>` : ''}
+      ${p.website ? `<a class="btn small ghost" href="${esc(p.website)}" target="_blank" rel="noopener">Website</a>` : ''}
+      ${saved ? `<button class="btn small ghost" data-action="edit-fav" data-id="${esc(p.id)}">${icon('edit')} Edit</button>` : ''}
     </div>
   </li>`;
 }
@@ -581,7 +582,7 @@ function renderFavourites() {
     ? list.map(f => placeCard(f, { saved: true })).join('')
     : state.favourites.length
       ? '<li class="empty">Nothing matches.</li>'
-      : `<li class="empty">No saved places yet.<br><br>Tap <b>＋ Add a place</b> for spots that aren't on maps (like your uni canteen), or ☆ places in Nearby.</li>`;
+      : `<li class="empty">No saved places yet.<br><br>Tap <b>Add a place</b> for spots that aren't on maps (like your uni canteen), or save places in Nearby with the heart.</li>`;
 }
 
 function renderHistory() {
@@ -804,7 +805,7 @@ function renderResult(p, quiet = false) {
   const dir = directionsUrl(p);
   const meta = [p.cuisine, p.list || (p.area && XMUM_AREAS[p.area] ? XMUM_AREAS[p.area].short : ''), priceLabel(p.price), p.rating ? starsLabel(p.rating) : '',
     p.googleRating ? `⭐ ${p.googleRating.toFixed(1)} on Google` : '', dist != null ? fmtDistance(dist) : '',
-    open === true ? 'Open now' : open === false ? 'Closed now' : ''].filter(Boolean).map(esc).join(' · ');
+    open === true ? 'Open now' : open === false ? 'Closed now' : ''].filter(Boolean).map(value => `<span>${esc(value)}</span>`).join('');
   const savable = !state.favourites.includes(p) && !favByOsm(p.id);
   el.hidden = false;
   el.className = quiet ? 'result' : 'result done';
@@ -812,19 +813,19 @@ function renderResult(p, quiet = false) {
     <div class="label">Let's eat at</div>
     <div class="name">${esc(p.name)}</div>
     ${meta ? `<div class="meta">${meta}</div>` : ''}
-    ${p.address ? `<div class="meta">📍 ${esc(p.address)}</div>` : ''}
-    ${p.hours ? `<div class="meta">🕘 ${esc(prettyHours(p.hours))}</div>` : ''}
+    ${p.address ? `<div class="meta">${icon('pin')} ${esc(p.address)}</div>` : ''}
+    ${p.hours ? `<div class="meta">${icon('clock')} ${esc(prettyHours(p.hours))}</div>` : ''}
     ${p.notes ? `<div class="notes">“${esc(p.notes)}”</div>` : ''}
     ${p.unverified && !p.hours ? '<div class="meta small">ℹ️ Hours not checked. Look it up before you go.</div>' : ''}
     <div class="btn-row">
-      <button class="btn primary" data-action="pick-this" data-id="${esc(p.id)}">✅ Eat here</button>
-      ${dir ? `<a class="btn" href="${dir}" target="_blank" rel="noopener">🧭 Directions</a>` : ''}
-      <button class="btn" data-action="share" data-id="${esc(p.id)}">📤 Share</button>
-      ${savable ? `<button class="btn" data-action="fav-toggle" data-id="${esc(p.id)}">☆ Save</button>` : ''}
+      <button class="btn primary" data-action="pick-this" data-id="${esc(p.id)}">${icon('check')} Eat here</button>
+      ${dir ? `<a class="btn" href="${dir}" target="_blank" rel="noopener">${icon('directions')} Directions</a>` : ''}
+      <button class="btn" data-action="share" data-id="${esc(p.id)}">${icon('share')} Share</button>
+      ${savable ? `<button class="btn" data-action="fav-toggle" data-id="${esc(p.id)}">${icon('heart')} Save</button>` : ''}
     </div>
     <div class="btn-row">
-      <button class="btn ghost" id="againBtn">🔁 Spin again</button>
-      <button class="btn ghost" id="notTodayBtn" title="Leave this place out until you reload">🙅 Not today</button>
+      <button class="btn ghost" id="againBtn">${icon('refresh')} Spin again</button>
+      <button class="btn ghost" id="notTodayBtn" title="Leave this place out until you reload">Not today</button>
     </div>`;
   $('#againBtn').onclick = spin;
   $('#notTodayBtn').onclick = () => {
@@ -1424,6 +1425,9 @@ function bindEvents() {
   $('#themeSel').onchange = () => { state.settings.theme = $('#themeSel').value; save(); applyTheme(); };
   $('#exportBtn').onclick = exportData;
   $('#importFile').onchange = e => { if (e.target.files[0]) importFile(e.target.files[0]); e.target.value = ''; };
+  $('label[for="importFile"]').onkeydown = e => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); $('#importFile').click(); }
+  };
   $('#clearHistoryBtn').onclick = () => {
     if (confirm('Delete your whole meal history?')) { state.history = []; save(); renderAll(); toast('History cleared'); }
   };
@@ -1452,16 +1456,16 @@ function bindEvents() {
 
 function applyTheme() {
   const t = state.settings.theme;
-  if (t === 'auto') document.documentElement.removeAttribute('data-theme');
-  else document.documentElement.setAttribute('data-theme', t);
+  document.documentElement.setAttribute('data-theme', t === 'auto'
+    ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : t);
 }
 
 function buildAreaChips() {
   $('#areaChips').innerHTML = Object.entries(XMUM_AREAS)
-    .map(([k, a]) => `<button type="button" data-area="${k}">${a.icon} ${esc(a.short)}</button>`).join('') +
-    '<button type="button" data-area="favourites">⭐ My places</button>';
+    .map(([k, a]) => `<button type="button" data-area="${k}">${esc(a.short)}</button>`).join('') +
+    `<button type="button" data-area="favourites">${icon('heart')} My places</button>`;
   $('#xmumAreaSeg').innerHTML = Object.entries(XMUM_AREAS)
-    .map(([k, a]) => `<button type="button" data-area="${k}">${a.icon} ${esc(a.short)}</button>`).join('');
+    .map(([k, a]) => `<button type="button" data-area="${k}">${esc(a.short)}</button>`).join('');
 }
 
 /* ---------- Start ---------- */
@@ -1479,7 +1483,7 @@ function init() {
   else loadNearby(false);
 
   if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
-    navigator.serviceWorker.register('sw.js?v=7').catch(() => { /* offline support is optional */ });
+    navigator.serviceWorker.register('sw.js?v=8').catch(() => { /* offline support is optional */ });
     // When an update takes over from an older version, reload once so the new code runs
     const hadController = !!navigator.serviceWorker.controller;
     let reloaded = false;

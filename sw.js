@@ -1,7 +1,7 @@
 // Network first (skipping the browser's HTTP cache) so updates show up straight away;
 // falls back to the saved copy when offline.
-const CACHE = 'w2e-v7';
-const SHELL = ['./', 'index.html', 'styles.css?v=7', 'config.js?v=7', 'xmum-data.js?v=7', 'app.js?v=7', 'icon.svg', 'manifest.webmanifest'];
+const CACHE = 'w2e-v8';
+const SHELL = ['./', 'index.html', 'styles.css?v=8', 'tokens.css?v=8', 'base.css?v=8', 'config.js?v=8', 'xmum-data.js?v=8', 'app.js?v=8', 'assets/burger-hero.png', 'icon.svg', 'manifest.webmanifest'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));

@@ -72,6 +72,10 @@ These use the OpenStreetMap style, for example `Mo-Fr 08:00-17:00; Sa 09:00-13:0
 
 ## Run it
 
+The default interface follows the supplied dark charcoal and warm orange design system. Light and device-matched themes remain available in Settings. The decorative burger artwork is generated and does not represent a specific restaurant's dish.
+
+For browser checks, install the local development tool with `npm install --prefix .hallmark/tools --no-save --no-package-lock puppeteer-core`. Start the server below, then run `node scripts/ui-smoke.cjs` in a second terminal. The checks use isolated browser storage and mocked provider responses. Screenshots are saved under `.hallmark/screens/`. Set `CHROME_PATH` if Chrome is installed elsewhere, or `APP_URL` for another local port.
+
 Location only works on `https://` or `localhost`, so serve the folder rather than opening the file directly:
 
 ```sh

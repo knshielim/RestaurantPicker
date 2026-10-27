@@ -1,0 +1,19 @@
+:root {
+  --space-3xs: 2px; --space-2xs: 4px; --space-xs: 8px; --space-sm: 12px; --space-md: 16px; --space-lg: 24px; --space-xl: 32px; --space-2xl: 48px; --space-3xl: 64px; --space-4xl: 96px;
+  --text-xs: .75rem; --text-sm: .875rem; --text-md: 1rem; --text-lg: 1.125rem; --text-xl: 1.5rem; --text-2xl: 2rem; --text-3xl: 3.5rem;
+  --font-body: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; --font-display: var(--font-body); --font-outlier: var(--font-body);
+  --bg: #0b0b0d; --surface: #201d1b; --surface-2: #2b2724; --text: #fffaf5; --muted: #c0b7af; --border: #ffffff24; --accent: #ffa033; --accent-ink: #241304; --accent-soft: #ffa0331a;
+  --good: #c2d9b4; --bad: #ffada5; --star: #f5b83d; --glass: #ffffff09; --glass-raised: #ffffff10; --glass-pressed: #ffffff18; --glass-sheet: #211e1bef; --highlight: #ffffff22; --rule: #ffffff14;
+  --ambient: #c973282b; --ambient-soft: #a34f1710; --warm-base: #17110d; --nav-bg: #242120ed; --scrim: #080706b8; --hero-shadow: #00000066;
+  --button-start: #ffb34e; --button-end: #f78b1d; --button-shadow: #ed790c2b; --transparent: transparent; --focus: #ffd49b; --field-border: #938273;
+  --shadow: inset 0 1px 0 var(--highlight); --radius: 24px; --radius-card: 24px; --radius-pill: 999px; --radius-input: 16px;
+  --color-paper: var(--bg); --color-paper-2: var(--surface); --color-paper-3: var(--surface-2); --color-ink: var(--text); --color-ink-2: var(--muted); --color-muted: var(--muted); --color-rule: var(--border);
+  --color-accent: var(--accent); --color-accent-ink: var(--accent-ink); --color-focus: var(--focus); --color-error: var(--bad); --color-success: var(--good);
+  --container: 1120px; --gutter: 32px; --gap-columns: 32px; --ease-out: cubic-bezier(.22, 1, .36, 1); --dur-micro: 120ms; --dur-short: 200ms;
+  --z-sticky-nav: 30; --z-modal: 40; --z-toast: 50; color-scheme: dark;
+}
+:root[data-theme="light"] {
+  --bg: #f8f2e9; --surface: #fffaf3; --surface-2: #eee3d5; --text: #30251b; --muted: #6c5a49; --border: #67452533; --accent: #a94b00; --accent-soft: #a94b0010;
+  --good: #40602f; --bad: #a02e27; --star: #8c5200; --glass: #fffaf370; --glass-raised: #ffffffaa; --glass-pressed: #5d32101a; --glass-sheet: #fffaf3f5; --highlight: #ffffffcc; --rule: #67452522;
+  --ambient: #dc9b4320; --ambient-soft: #c5791410; --warm-base: #f1e5d6; --nav-bg: #fffaf3ed; --scrim: #30251b70; --hero-shadow: #8a521524; --focus: #954300; --field-border: #8f7a64; color-scheme: light;
+}

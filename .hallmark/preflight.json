@@ -1,0 +1,16 @@
+{
+  "scanned": "2026-10-27",
+  "scope": "app",
+  "mode": "redesign",
+  "depth": "full",
+  "findings": {
+    "framework": "Plain HTML, CSS and JavaScript; five hash-tab screens in index.html",
+    "fonts": "System sans serif in styles.css",
+    "palette": "Warm light default and brown dark theme; replaced with user-supplied charcoal glass and orange system",
+    "motion": "CSS feedback; existing JavaScript picking animation",
+    "direction": "d:/Download/design-system.json and supplied burger reference",
+    "principles": "Attached Apple Design guide: immediate feedback, consistent navigation, legible materials and reduced motion"
+  },
+  "preserve": ["All restaurant providers and data", "Saved places and history", "All forms, fields and handlers", "XMUM mode", "Theme settings", "PWA support"],
+  "introduce": ["Charcoal glass surfaces", "Orange actions", "Floating navigation", "Responsive picker and result composition", "Decorative generated burger asset", "Accessible SVG icons"]
+}

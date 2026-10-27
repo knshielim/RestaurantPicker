@@ -5,41 +5,59 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Where2Eat</title>
   <meta name="description" content="Can't decide where to eat? Spin for a random place nearby or from your own favourites, including spots that aren't on any map.">
-  <meta name="theme-color" content="#e8590c">
+  <meta name="theme-color" content="#0b0b0d">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="icon.svg">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
-  <link rel="stylesheet" href="styles.css?v=7">
+  <link rel="stylesheet" href="styles.css?v=8">
 </head>
 <body>
+  <a href="#main" class="skip-link">Skip to content</a>
+  <svg class="icon-defs" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <symbol id="icon-dice" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="5"/><path d="M8 8h.01M16 8h.01M12 12h.01M8 16h.01M16 16h.01" stroke-width="3"/></symbol>
+    <symbol id="icon-pin" viewBox="0 0 24 24"><path d="M20 10c0 6-8 11-8 11S4 16 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2.5"/></symbol>
+    <symbol id="icon-heart" viewBox="0 0 24 24"><path d="m12 20-8-8a5 5 0 0 1 8-6 5 5 0 0 1 8 6Z"/></symbol>
+    <symbol id="icon-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+    <symbol id="icon-campus" viewBox="0 0 24 24"><path d="m2 8 10-5 10 5-10 5Zm4 3v6c4 3 8 3 12 0v-6M22 8v8"/></symbol>
+    <symbol id="icon-settings" viewBox="0 0 24 24"><path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="3"/><circle cx="15" cy="17" r="3"/></symbol>
+    <symbol id="icon-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="icon-refresh" viewBox="0 0 24 24"><path d="M20 7v5h-5M4 17v-5h5M19 12a7 7 0 0 0-12-5L4 10M5 12a7 7 0 0 0 12 5l3-3"/></symbol>
+    <symbol id="icon-directions" viewBox="0 0 24 24"><path d="m12 2 10 10-10 10L2 12Zm-4 13v-4h8m-3-3 3 3-3 3"/></symbol>
+    <symbol id="icon-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></symbol>
+    <symbol id="icon-share" viewBox="0 0 24 24"><path d="M12 16V3m-4 4 4-4 4 4M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></symbol>
+    <symbol id="icon-edit" viewBox="0 0 24 24"><path d="m16 3 5 5-12 12-6 1 1-6ZM14 5l5 5"/></symbol>
+  </svg>
   <header class="topbar">
     <div class="brand">
       <img src="icon.svg" alt="" width="28" height="28">
       <span>Where2Eat</span>
     </div>
-    <div class="loc-chip" id="locChip" title="Current location">
-      <span class="dot" aria-hidden="true"></span>
+    <button type="button" class="loc-chip" id="locChip" title="Current location">
+      <svg class="icon" aria-hidden="true"><use href="#icon-pin"/></svg>
       <span id="locLabel">No location set</span>
-    </div>
-    <button class="mode-btn" id="xmumBtn" aria-pressed="false" title="XMUM student mode">🎓 XMUM</button>
-    <button class="icon-btn" id="settingsBtn" aria-label="Settings">⚙️</button>
+    </button>
+    <button class="mode-btn" id="xmumBtn" aria-pressed="false" title="XMUM student mode"><svg class="icon" aria-hidden="true"><use href="#icon-campus"/></svg> XMUM</button>
+    <button class="icon-btn" id="settingsBtn" aria-label="Settings"><svg class="icon" aria-hidden="true"><use href="#icon-settings"/></svg></button>
   </header>
 
-  <nav class="tabs" role="tablist">
-    <a href="#decide" class="tab" data-tab="decide" role="tab"><span aria-hidden="true">🎲</span><span>Decide</span></a>
-    <a href="#nearby" class="tab" data-tab="nearby" role="tab"><span aria-hidden="true">📍</span><span>Nearby</span></a>
-    <a href="#xmum" class="tab" data-tab="xmum" role="tab" hidden><span aria-hidden="true">🎓</span><span>XMUM food</span></a>
-    <a href="#favourites" class="tab" data-tab="favourites" role="tab"><span aria-hidden="true">⭐</span><span>My places</span></a>
-    <a href="#history" class="tab" data-tab="history" role="tab"><span aria-hidden="true">🕘</span><span>History</span></a>
+  <nav class="tabs" role="tablist" aria-label="Main navigation">
+    <a href="#decide" class="tab" data-tab="decide" role="tab"><svg class="icon" aria-hidden="true"><use href="#icon-dice"/></svg><span>Decide</span></a>
+    <a href="#nearby" class="tab" data-tab="nearby" role="tab"><svg class="icon" aria-hidden="true"><use href="#icon-pin"/></svg><span>Nearby</span></a>
+    <a href="#xmum" class="tab" data-tab="xmum" role="tab" hidden><svg class="icon" aria-hidden="true"><use href="#icon-campus"/></svg><span>XMUM food</span></a>
+    <a href="#favourites" class="tab" data-tab="favourites" role="tab"><svg class="icon" aria-hidden="true"><use href="#icon-heart"/></svg><span>My places</span></a>
+    <a href="#history" class="tab" data-tab="history" role="tab"><svg class="icon" aria-hidden="true"><use href="#icon-clock"/></svg><span>History</span></a>
   </nav>
 
-  <main>
+  <main id="main">
     <!-- DECIDE -->
     <section id="tab-decide" class="panel" role="tabpanel">
       <div class="card hero">
-        <h1>Where should we eat?</h1>
+        <div class="hero-heading">
+        <h1>Where should<br>we <span>eat?</span></h1>
         <p class="muted" id="heroSub">Choose where to pick from, tweak the filters, then spin.</p>
+        </div>
+        <div class="picker-controls">
 
         <div class="segmented" id="sourceSeg" role="radiogroup" aria-label="Pick from">
           <button data-source="both" role="radio">Everything</button>
@@ -104,20 +122,24 @@
         <div class="pool-info" id="poolInfo"></div>
 
         <div class="spin-row">
-          <button class="btn primary big" id="spinBtn">🎲 Pick for me</button>
+          <button class="btn primary big" id="spinBtn"><svg class="icon" aria-hidden="true"><use href="#icon-dice"/></svg> Pick for me</button>
           <button class="btn" id="threeBtn" title="Show three options and choose one">Give me 3</button>
+        </div>
         </div>
       </div>
 
+      <div class="pick-stage">
+      <figure class="hero-food" aria-hidden="true"><img src="assets/burger-hero.png" alt="" width="1448" height="1086" fetchpriority="high"></figure>
       <div id="result" class="result" hidden></div>
       <div id="choices" class="choices" hidden></div>
+      </div>
     </section>
 
     <!-- NEARBY -->
     <section id="tab-nearby" class="panel" role="tabpanel" hidden>
       <div class="card">
         <div class="loc-controls">
-          <button class="btn primary" id="useLocBtn">📍 Use my location</button>
+          <button class="btn primary" id="useLocBtn"><svg class="icon" aria-hidden="true"><use href="#icon-pin"/></svg> Use my location</button>
           <form id="placeSearch" class="search-form">
             <input type="search" id="placeQuery" placeholder="…or search an area (e.g. your campus)" aria-label="Search an area">
             <button class="btn" type="submit">Go</button>
@@ -142,7 +164,7 @@
             <button data-view="list" class="active">List</button>
             <button data-view="map">Map</button>
           </div>
-          <button class="btn ghost" id="refreshNearby">↻ Refresh</button>
+          <button class="btn ghost" id="refreshNearby"><svg class="icon" aria-hidden="true"><use href="#icon-refresh"/></svg> Refresh</button>
         </div>
       </div>
       <div id="nearbyStatus" class="status"></div>
@@ -161,8 +183,8 @@
         </div>
         <p class="muted small" id="xmumNote"></p>
         <div class="row-between">
-          <button class="btn ghost small" id="xmumLocBtn">📍 Show distances from me</button>
-          <button class="btn ghost small" id="xmumRefresh">↻ Reload places</button>
+          <button class="btn ghost small" id="xmumLocBtn"><svg class="icon" aria-hidden="true"><use href="#icon-pin"/></svg> Show distances from me</button>
+          <button class="btn ghost small" id="xmumRefresh"><svg class="icon" aria-hidden="true"><use href="#icon-refresh"/></svg> Reload places</button>
         </div>
       </div>
       <div id="xmumStatus" class="status"></div>
@@ -174,9 +196,9 @@
       <div class="card">
         <div class="row-between">
           <h2>My places</h2>
-          <button class="btn primary" id="addFavBtn">＋ Add a place</button>
+          <button class="btn primary" id="addFavBtn"><svg class="icon" aria-hidden="true"><use href="#icon-plus"/></svg> Add a place</button>
         </div>
-        <p class="muted small">Save spots from Nearby with ☆, or add your own, like the uni canteen stall, a pasar malam or a friend's home cooking.</p>
+        <p class="muted small">Save spots from Nearby with the heart, or add your own, like the uni canteen stall, a pasar malam or a friend's home cooking.</p>
         <div class="grid2 tight">
           <input type="search" id="favFilter" placeholder="Search my places" aria-label="Search my places">
           <select id="favListFilter" aria-label="Filter by list"><option value="">All lists</option></select>
@@ -184,7 +206,7 @@
         <div class="row-between">
           <select id="favSort" aria-label="Sort">
             <option value="recent">Recently added</option>
-            <option value="name">Name A–Z</option>
+            <option value="name">Name A to Z</option>
             <option value="rating">Top rated</option>
             <option value="visits">Most visited</option>
             <option value="distance">Nearest</option>
@@ -200,7 +222,7 @@
       <div class="card">
         <div class="row-between">
           <h2>Where you've eaten</h2>
-          <button class="btn" id="logMealBtn">＋ Log a meal</button>
+          <button class="btn" id="logMealBtn"><svg class="icon" aria-hidden="true"><use href="#icon-plus"/></svg> Log a meal</button>
         </div>
         <div class="stats" id="stats"></div>
       </div>
@@ -229,9 +251,9 @@
         <label>Price
           <select name="price">
             <option value="0">Not sure</option>
-            <option value="1">$ – cheap</option>
-            <option value="2">$$ – mid</option>
-            <option value="3">$$$ – treat</option>
+            <option value="1">$ (cheap)</option>
+            <option value="2">$$ (mid)</option>
+            <option value="3">$$$ (treat)</option>
           </select>
         </label>
         <label>My rating
@@ -266,7 +288,7 @@
       <div class="row-between">
         <span class="muted small" id="favCoords">No map pin</span>
         <span>
-          <button type="button" class="btn ghost small" id="pinHereBtn">📍 Pin current location</button>
+          <button type="button" class="btn ghost small" id="pinHereBtn"><svg class="icon" aria-hidden="true"><use href="#icon-pin"/></svg> Pin current location</button>
           <button type="button" class="btn ghost small" id="clearPinBtn" hidden>Remove pin</button>
         </span>
       </div>
@@ -312,12 +334,12 @@
           <option value="dark">Dark</option>
         </select>
       </label>
-      <label class="check"><input type="checkbox" id="xmumToggle"> 🎓 XMUM student mode: campus canteens, Bell Suites/Sunsuria City and Kota Warisan</label>
+      <label class="check"><input type="checkbox" id="xmumToggle"> XMUM student mode: campus canteens, Bell Suites/Sunsuria City and Kota Warisan</label>
       <h3>Your data</h3>
       <p class="muted small">Everything is saved in this browser only. Export a backup to move it to another device or share your list with friends.</p>
       <div class="btn-row">
-        <button type="button" class="btn" id="exportBtn">⬇ Export backup</button>
-        <label class="btn" for="importFile">⬆ Import backup</label>
+        <button type="button" class="btn" id="exportBtn">Export backup</button>
+        <label class="btn" for="importFile" tabindex="0" role="button">Import backup</label>
         <input type="file" id="importFile" accept="application/json,.json" hidden>
       </div>
       <div class="btn-row">
@@ -325,7 +347,7 @@
         <button type="button" class="btn danger ghost" id="resetBtn">Erase everything</button>
       </div>
       <p class="muted small">Nearby places come from TomTom (© TomTom) when configured, with <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> as a fallback. If a spot is missing, add it to My places yourself.</p>
-      <p class="muted small">Version 7</p>
+      <p class="muted small">Version 8</p>
       <div class="dialog-actions">
         <span class="spacer"></span>
         <button class="btn primary" value="close">Done</button>
@@ -336,8 +358,8 @@
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js" defer></script>
-  <script src="config.js?v=7" defer></script>
-  <script src="xmum-data.js?v=7" defer></script>
-  <script src="app.js?v=7" defer></script>
+  <script src="config.js?v=8" defer></script>
+  <script src="xmum-data.js?v=8" defer></script>
+  <script src="app.js?v=8" defer></script>
 </body>
 </html>

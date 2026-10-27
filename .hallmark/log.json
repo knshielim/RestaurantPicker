@@ -1,0 +1,32 @@
+[
+ {
+  "mode": "redesign",
+  "depth": "full",
+  "scope": "app",
+  "shape": "app screen",
+  "theme": "custom",
+  "axes": "dark/grotesk/warm",
+  "hero": "Existing picker with decorative burger",
+  "nav": "Floating task tabs",
+  "footer": "None, app screen",
+  "imagery": "Generated decorative burger from the supplied reference",
+  "photos": [],
+  "entry": "index.html",
+  "fingerprint": "warm-glass-picker-result",
+  "sections": [
+   "Decide",
+   "Nearby",
+   "XMUM food",
+   "My places",
+   "History"
+  ],
+  "signature": "Burger silhouette above the selected restaurant",
+  "waived": [
+   "29",
+   "38iii"
+  ],
+  "prompt": "Redesign RestaurantPicker using the supplied design-system.json, burger reference and Apple design principles; preserve functionality.",
+  "verification": "14 data tests and Chrome interaction checks pass; seven responsive widths; Hallmark static zero failures or warnings; bundled renderer timed out.",
+  "date": "2026-10-27"
+ }
+]
